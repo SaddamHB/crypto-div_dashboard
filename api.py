@@ -3,48 +3,48 @@ import pandas as pd
 import requests
 from ta.momentum import RSIIndicator
 import time
+from datetime import datetime
 
 app = Flask(__name__)
 
-# Liste des cryptos et timeframes à surveiller
-cryptos = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]  # tu peux en ajouter
+# Liste des cryptos et timeframes
+# Pour CoinGecko, on utilise les ids : 'bitcoin', 'ethereum', 'solana'
+cryptos = ["bitcoin", "ethereum", "solana"]
 timeframes = ["15m", "1h", "4h", "1d"]
 
-def get_klines(symbol, interval, limit=100, retry=3, wait=1):
+# Mapping timeframe → nombre de minutes pour CoinGecko (pour simplifier)
+tf_to_minutes = {
+    "15m": 15,
+    "1h": 60,
+    "4h": 240,
+    "1d": 1440
+}
+
+def get_ohlcv(crypto_id, minutes, limit=100):
     """
-    Récupère les données OHLCV depuis Binance avec gestion des erreurs.
-    retry: nombre de tentatives si l'API échoue
-    wait: temps d'attente entre les tentatives en secondes
+    Récupère les prix historiques depuis CoinGecko.
+    minutes: intervalle en minutes
+    limit: nombre de bougies
     """
-    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
-    for _ in range(retry):
-        try:
-            response = requests.get(url, timeout=5)
-            if response.status_code != 200:
-                raise Exception(f"Binance API error: {response.status_code}")
-            data = response.json()
-            if not data:
-                raise Exception("Empty data from Binance")
-            df = pd.DataFrame(data, columns=[
-                "open_time","open","high","low","close","volume",
-                "close_time","quote_asset_volume","number_of_trades",
-                "taker_buy_base","taker_buy_quote","ignore"
-            ])
-            df["close"] = df["close"].astype(float)
-            return df
-        except Exception as e:
-            last_error = str(e)
-            time.sleep(wait)
-    # Après toutes les tentatives échouées
-    raise Exception(f"Failed to fetch {symbol} {interval}: {last_error}")
+    # CoinGecko ne fournit pas directement le OHLCV avec minutes → on utilise "market_chart"
+    days = max(1, int((minutes*limit)/(60*24)))  # approx pour "vs USD" over days
+    url = f"https://api.coingecko.com/api/v3/coins/{crypto_id}/market_chart?vs_currency=usd&days={days}&interval=hourly"
+    response = requests.get(url, timeout=5)
+    if response.status_code != 200:
+        raise Exception(f"CoinGecko API error: {response.status_code}")
+    data = response.json()
+    prices = data.get("prices", [])
+    if not prices:
+        raise Exception("Empty data from CoinGecko")
+    df = pd.DataFrame(prices, columns=["timestamp", "price"])
+    df["close"] = df["price"]
+    return df.tail(limit)  # dernière "limit" valeurs
 
 def check_rsi_divergence(df, period=14):
     """
-    Vérifie une divergence simplifiée basée sur RSI :
-    - RSI > 70 -> Bearish
-    - RSI < 30 -> Bullish
+    Divergence simplifiée : RSI > 70 = Bearish, RSI < 30 = Bullish
     """
-    if df.empty:
+    if df.empty or len(df) < period:
         return "Error"
     rsi = RSIIndicator(df["close"], period)
     df["rsi"] = rsi.rsi()
@@ -63,7 +63,7 @@ def divergences():
         result[crypto] = {}
         for tf in timeframes:
             try:
-                df = get_klines(crypto, tf)
+                df = get_ohlcv(crypto, tf_to_minutes[tf])
                 result[crypto][tf] = check_rsi_divergence(df)
                 time.sleep(0.2)  # petite pause pour limiter les requêtes
             except Exception as e:
