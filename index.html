@@ -1,1 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Crypto Divergences Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#0b0b0b; color:#fff; margin:0; padding:20px; }
+    h1 { text-align:center; }
+    table { border-collapse:collapse; margin:20px auto; width:90%; max-width:1200px; background:#111; }
+    th, td { padding:8px 12px; border:1px solid #222; text-align:center; }
+    th { background:#161616; }
+    .Regular\ Bullish, .Hidden\ Bullish { background:#2e7d32; color:#fff; }
+    .Regular\ Bearish, .Hidden\ Bearish { background:#b71c1c; color:#fff; }
+    .none, td.empty { color:#888; }
+  </style>
+</head>
+<body>
+  <h1>Crypto Divergences</h1>
+  <div style="text-align:center; margin-bottom:10px;">Dernière mise à jour : <span id="last">-</span></div>
+  <table id="divTable">
+    <thead>
+      <tr><th>Symbol</th><th>Timeframe</th><th>Divergence</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+<script>
+const API_URL = "https://YOUR_RENDER_URL/divergences"; // <-- Remplace par l'URL Render
+
+async function fetchData() {
+  try {
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    const tbody = document.querySelector("#divTable tbody");
+    tbody.innerHTML = "";
+    data.forEach(row => {
+      const tr = document.createElement("tr");
+      const divergence = row.divergence || '-';
+      const cls = divergence === '-' ? 'empty' : divergence.replace(/\s/g,'\\ ');
+      tr.innerHTML = `<td>${row.symbol}</td><td>${row.timeframe}</td><td class="${cls}">${divergence}</td>`;
+      tbody.appendChild(tr);
+    });
+    document.getElementById("last").innerText = new Date().toLocaleString();
+  } catch (e) {
+    console.error("Fetch error", e);
+  }
+}
+
+fetchData();
+setInterval(fetchData, 30_000); // 30s
+</script>
+</body>
+</html>
+
 
