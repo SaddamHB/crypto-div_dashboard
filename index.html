@@ -1,16 +1,18 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <title>Crypto Divergences Dashboard</title>
     <style>
         body { font-family: Arial, sans-serif; background:#1e1e1e; color:#fff; }
-        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-        th, td { border: 1px solid #555; padding: 8px; text-align: center; }
+        h1 { text-align: center; }
+        table { border-collapse: collapse; width: 80%; margin: 20px auto; }
+        th, td { border: 1px solid #555; padding: 10px; text-align: center; }
         th { background-color: #333; }
         td.Bullish { background-color: #28a745; }
         td.Bearish { background-color: #dc3545; }
         td.None { background-color: #555; }
+        td.Error { background-color: #ffa500; color: #000; }
     </style>
 </head>
 <body>
@@ -30,17 +32,24 @@
     </table>
 
     <script>
+        const API_URL = 'https://crypto-div-dashboard.onrender.com/divergences'; // Remplace par ton URL Render si différente
+
         async function fetchDivergences() {
             try {
-                const res = await fetch('https://crypto-div-dashboard.onrender.com'); // mettre ton URL Render
+                const res = await fetch(API_URL);
                 const data = await res.json();
                 const tbody = document.querySelector("#divTable tbody");
                 tbody.innerHTML = ""; // reset
 
                 for (const crypto in data) {
                     const tr = document.createElement("tr");
-                    tr.innerHTML = `<td>${crypto}</td>` +
-                        Object.values(data[crypto]).map(val => `<td class="${val}">${val}</td>`).join('');
+                    const rowHtml = `<td>${crypto}</td>` + 
+                        Object.values(data[crypto]).map(val => {
+                            let cls = val;
+                            if (!["Bullish","Bearish","None"].includes(val)) cls = "Error";
+                            return `<td class="${cls}">${val}</td>`;
+                        }).join('');
+                    tr.innerHTML = rowHtml;
                     tbody.appendChild(tr);
                 }
             } catch (err) {
@@ -48,9 +57,10 @@
             }
         }
 
+        // Initial fetch
         fetchDivergences();
-        setInterval(fetchDivergences, 60 * 1000); // update toutes les 60 secondes
+        // Update toutes les 60 secondes
+        setInterval(fetchDivergences, 60000);
     </script>
 </body>
 </html>
-
