@@ -32,7 +32,7 @@
     <script>
         async function fetchDivergences() {
             try {
-                const res = await fetch('https://crypto-div-dashboard.onrender.com/divergences'); // mettre ton URL Render
+                const res = await fetch('https://crypto-div-dashboard.onrender.com'); // mettre ton URL Render
                 const data = await res.json();
                 const tbody = document.querySelector("#divTable tbody");
                 tbody.innerHTML = ""; // reset
@@ -53,3 +53,4 @@
     </script>
 </body>
 </html>
+
